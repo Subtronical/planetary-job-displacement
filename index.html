@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Earth Workforce Evolution – AI Displacement 2025–2035</title>
+  <meta name="description" content="Interactive globe visualising AI displacement of back-office jobs globally, 2025–2035. Nation-by-nation impact, GDP shock, geopolitical conflict, and emerging opportunities."/>
+  <meta property="og:title" content="Earth Workforce Evolution"/>
+  <meta property="og:description" content="How AI is reshaping the global workforce, 2025–2035"/>
+  <meta property="og:type" content="website"/>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    html,body,#root{height:100%;overflow:hidden;}
+    body{font-family:system-ui,-apple-system,sans-serif;background:#060d1a;}
+    input[type=range]{-webkit-appearance:none;appearance:none;height:4px;border-radius:2px;background:rgba(59,110,245,0.25);outline:none;}
+    input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#3b6ef5;cursor:pointer;box-shadow:0 0 6px rgba(59,110,245,0.5);}
+    ::-webkit-scrollbar{width:4px;height:4px;}
+    ::-webkit-scrollbar-track{background:rgba(0,0,0,0.1);}
+    ::-webkit-scrollbar-thumb{background:rgba(100,140,200,0.3);border-radius:2px;}
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" data-presets="react">
+  const{useState,useEffect,useRef,useCallback}=React;
+
+  const C={bg:"#060d1a",panel:"#f7f9fc",card:"#ffffff",border:"#e2e8f0",accent:"#3b6ef5",text:"#1a2340",muted:"#8898aa",dim:"#718096",red:"#e53e3e",orange:"#dd6b20",yellow:"#d69e2e",green:"#38a169",purple:"#805ad5",teal:"#319795",darkPanel:"#0d1829",darkCard:"#111e33",darkBorder:"#1e2e4a",darkText:"#e8f0ff",darkMuted:"#7b93c8"};
+  const riskColor=r=>r>=85?"#ff1a33":r>=70?"#ff6600":r>=55?"#ffaa00":r>=40?"#ddc200":"#22cc55";
+  const riskLabel=r=>r>=85?"Critical":r>=70?"Severe":r>=55?"High":r>=40?"Moderate":"Emerging";
+  const Bar=({pct,color,h=4})=>React.createElement('div',{style:{height:h,background:'rgba(0,0,0,0.08)',borderRadius:h,overflow:'hidden'}},React.createElement('div',{style:{height:'100%',width:`${Math.min(pct,100)}%`,background:color,borderRadius:h,transition:'width 0.4s'}}));
+
+  const REGIONS={
+    "north-america":{name:"North America",lat:40,lng:-100,color:"#3b6ef5",sectors:["Finance","Insurance","Healthcare Admin","Legal Ops"],yearly:{2025:{risk:62,displaced:1.2,newRoles:0.3,automation:38},2026:{risk:71,displaced:1.8,newRoles:0.5,automation:52},2027:{risk:79,displaced:2.4,newRoles:0.7,automation:64},2028:{risk:85,displaced:2.9,newRoles:1.0,automation:74},2029:{risk:89,displaced:3.3,newRoles:1.4,automation:82},2030:{risk:91,displaced:3.6,newRoles:1.9,automation:87},2031:{risk:93,displaced:3.8,newRoles:2.3,automation:90},2032:{risk:94,displaced:3.9,newRoles:2.7,automation:92},2033:{risk:95,displaced:4.0,newRoles:3.1,automation:94},2034:{risk:96,displaced:4.0,newRoles:3.4,automation:95},2035:{risk:96,displaced:3.9,newRoles:3.7,automation:96}}},
+    "europe":{name:"Europe",lat:50,lng:15,color:"#8b5cf6",sectors:["Banking","Public Sector","Retail Ops","Telecom"],yearly:{2025:{risk:48,displaced:0.7,newRoles:0.2,automation:28},2026:{risk:57,displaced:1.1,newRoles:0.3,automation:38},2027:{risk:65,displaced:1.5,newRoles:0.5,automation:49},2028:{risk:72,displaced:1.9,newRoles:0.7,automation:59},2029:{risk:78,displaced:2.3,newRoles:1.0,automation:68},2030:{risk:82,displaced:2.6,newRoles:1.4,automation:75},2031:{risk:85,displaced:2.8,newRoles:1.8,automation:80},2032:{risk:87,displaced:2.9,newRoles:2.1,automation:84},2033:{risk:89,displaced:2.9,newRoles:2.4,automation:87},2034:{risk:90,displaced:2.9,newRoles:2.6,automation:89},2035:{risk:91,displaced:2.8,newRoles:2.7,automation:91}}},
+    "south-asia":{name:"South Asia",lat:20,lng:78,color:"#ff1a33",sectors:["BPO","Data Entry","Customer Support","KPO"],yearly:{2025:{risk:78,displaced:1.8,newRoles:0.2,automation:35},2026:{risk:84,displaced:2.6,newRoles:0.4,automation:51},2027:{risk:88,displaced:3.3,newRoles:0.6,automation:64},2028:{risk:91,displaced:3.9,newRoles:0.9,automation:74},2029:{risk:93,displaced:4.4,newRoles:1.3,automation:81},2030:{risk:95,displaced:4.8,newRoles:1.8,automation:86},2031:{risk:96,displaced:5.0,newRoles:2.2,automation:89},2032:{risk:97,displaced:5.1,newRoles:2.6,automation:92},2033:{risk:97,displaced:5.1,newRoles:3.0,automation:93},2034:{risk:98,displaced:5.0,newRoles:3.3,automation:94},2035:{risk:98,displaced:4.8,newRoles:3.5,automation:95}}},
+    "southeast-asia":{name:"SE Asia",lat:10,lng:108,color:"#ff6600",sectors:["Shared Services","Logistics Admin","Finance Ops","Retail"],yearly:{2025:{risk:52,displaced:0.4,newRoles:0.1,automation:25},2026:{risk:61,displaced:0.7,newRoles:0.2,automation:37},2027:{risk:69,displaced:1.0,newRoles:0.3,automation:49},2028:{risk:75,displaced:1.3,newRoles:0.5,automation:58},2029:{risk:80,displaced:1.6,newRoles:0.7,automation:66},2030:{risk:84,displaced:1.9,newRoles:1.0,automation:72},2031:{risk:87,displaced:2.1,newRoles:1.3,automation:77},2032:{risk:89,displaced:2.2,newRoles:1.5,automation:81},2033:{risk:91,displaced:2.3,newRoles:1.8,automation:84},2034:{risk:92,displaced:2.3,newRoles:2.0,automation:86},2035:{risk:92,displaced:2.2,newRoles:2.1,automation:87}}},
+    "east-asia":{name:"East Asia",lat:35,lng:118,color:"#ffaa00",sectors:["Mfg. Admin","Finance","Retail Ops","Gov. Services"],yearly:{2025:{risk:65,displaced:1.1,newRoles:0.3,automation:42},2026:{risk:72,displaced:1.5,newRoles:0.5,automation:54},2027:{risk:78,displaced:1.9,newRoles:0.7,automation:65},2028:{risk:83,displaced:2.3,newRoles:0.9,automation:73},2029:{risk:87,displaced:2.6,newRoles:1.2,automation:79},2030:{risk:90,displaced:2.9,newRoles:1.6,automation:84},2031:{risk:91,displaced:3.0,newRoles:1.9,automation:87},2032:{risk:92,displaced:3.1,newRoles:2.2,automation:89},2033:{risk:93,displaced:3.1,newRoles:2.5,automation:91},2034:{risk:94,displaced:3.0,newRoles:2.7,automation:92},2035:{risk:94,displaced:2.9,newRoles:2.8,automation:93}}},
+    "latam":{name:"Latin America",lat:-15,lng:-60,color:"#22cc55",sectors:["Banking","Telecom","Gov. Admin","Insurance"],yearly:{2025:{risk:34,displaced:0.2,newRoles:0.1,automation:18},2026:{risk:42,displaced:0.4,newRoles:0.1,automation:27},2027:{risk:51,displaced:0.6,newRoles:0.2,automation:37},2028:{risk:60,displaced:0.9,newRoles:0.3,automation:47},2029:{risk:67,displaced:1.2,newRoles:0.4,automation:55},2030:{risk:72,displaced:1.4,newRoles:0.6,automation:62},2031:{risk:76,displaced:1.6,newRoles:0.8,automation:67},2032:{risk:80,displaced:1.7,newRoles:1.0,automation:71},2033:{risk:82,displaced:1.8,newRoles:1.2,automation:75},2034:{risk:84,displaced:1.8,newRoles:1.4,automation:77},2035:{risk:85,displaced:1.8,newRoles:1.5,automation:79}}},
+    "middle-east":{name:"Middle East",lat:25,lng:45,color:"#00c9ff",sectors:["Banking","Oil & Gas Admin","Government","Retail"],yearly:{2025:{risk:44,displaced:0.15,newRoles:0.05,automation:22},2026:{risk:53,displaced:0.25,newRoles:0.08,automation:33},2027:{risk:61,displaced:0.35,newRoles:0.12,automation:44},2028:{risk:68,displaced:0.45,newRoles:0.18,automation:53},2029:{risk:74,displaced:0.55,newRoles:0.25,automation:61},2030:{risk:79,displaced:0.65,newRoles:0.33,automation:68},2031:{risk:82,displaced:0.72,newRoles:0.40,automation:73},2032:{risk:84,displaced:0.77,newRoles:0.47,automation:77},2033:{risk:86,displaced:0.80,newRoles:0.53,automation:80},2034:{risk:87,displaced:0.82,newRoles:0.58,automation:82},2035:{risk:88,displaced:0.82,newRoles:0.62,automation:84}}},
+    "africa":{name:"Africa",lat:5,lng:20,color:"#ff69b4",sectors:["Banking","Telecom","Mobile Money","Gov. Services"],yearly:{2025:{risk:18,displaced:0.05,newRoles:0.02,automation:10},2026:{risk:24,displaced:0.09,newRoles:0.04,automation:16},2027:{risk:31,displaced:0.14,newRoles:0.06,automation:23},2028:{risk:40,displaced:0.21,newRoles:0.09,automation:32},2029:{risk:49,displaced:0.3,newRoles:0.13,automation:41},2030:{risk:56,displaced:0.40,newRoles:0.18,automation:49},2031:{risk:62,displaced:0.50,newRoles:0.24,automation:56},2032:{risk:67,displaced:0.60,newRoles:0.30,automation:62},2033:{risk:71,displaced:0.68,newRoles:0.37,automation:67},2034:{risk:74,displaced:0.74,newRoles:0.44,automation:71},2035:{risk:77,displaced:0.79,newRoles:0.51,automation:74}}},
+    "oceania":{name:"Oceania",lat:-25,lng:135,color:"#aee8b0",sectors:["Finance","Insurance","Healthcare","Gov. Services"],yearly:{2025:{risk:60,displaced:0.1,newRoles:0.03,automation:40},2026:{risk:69,displaced:0.14,newRoles:0.05,automation:52},2027:{risk:76,displaced:0.17,newRoles:0.07,automation:62},2028:{risk:82,displaced:0.20,newRoles:0.09,automation:71},2029:{risk:86,displaced:0.23,newRoles:0.12,automation:78},2030:{risk:89,displaced:0.25,newRoles:0.15,automation:83},2031:{risk:91,displaced:0.26,newRoles:0.18,automation:86},2032:{risk:92,displaced:0.27,newRoles:0.20,automation:88},2033:{risk:93,displaced:0.27,newRoles:0.22,automation:90},2034:{risk:93,displaced:0.27,newRoles:0.23,automation:91},2035:{risk:94,displaced:0.26,newRoles:0.24,automation:92}}},
+  };
+
+  const COUNTRIES_BY_REGION={
+    "north-america":[{n:"United States",f:"🇺🇸",y:{2025:65,2026:74,2027:82,2028:87,2029:91,2030:93,2031:94,2032:95,2033:95,2034:96,2035:96}},{n:"Canada",f:"🇨🇦",y:{2025:58,2026:66,2027:74,2028:80,2029:85,2030:88,2031:90,2032:91,2033:92,2034:93,2035:93}},{n:"Mexico",f:"🇲🇽",y:{2025:42,2026:50,2027:58,2028:65,2029:72,2030:77,2031:80,2032:83,2033:85,2034:86,2035:87}}],
+    "europe":[{n:"UK",f:"🇬🇧",y:{2025:58,2026:67,2027:74,2028:80,2029:85,2030:88,2031:90,2032:91,2033:92,2034:92,2035:93}},{n:"Germany",f:"🇩🇪",y:{2025:55,2026:63,2027:71,2028:77,2029:82,2030:85,2031:87,2032:89,2033:90,2034:91,2035:91}},{n:"France",f:"🇫🇷",y:{2025:50,2026:58,2027:66,2028:72,2029:78,2030:82,2031:85,2032:87,2033:88,2034:89,2035:90}},{n:"Netherlands",f:"🇳🇱",y:{2025:54,2026:63,2027:70,2028:76,2029:81,2030:84,2031:87,2032:88,2033:89,2034:90,2035:91}},{n:"Poland",f:"🇵🇱",y:{2025:44,2026:52,2027:60,2028:67,2029:73,2030:77,2031:80,2032:82,2033:84,2034:85,2035:86}}],
+    "south-asia":[{n:"India",f:"🇮🇳",y:{2025:82,2026:87,2027:91,2028:94,2029:96,2030:97,2031:97,2032:98,2033:98,2034:98,2035:98}},{n:"Bangladesh",f:"🇧🇩",y:{2025:68,2026:74,2027:80,2028:85,2029:89,2030:92,2031:94,2032:95,2033:95,2034:96,2035:96}},{n:"Pakistan",f:"🇵🇰",y:{2025:55,2026:62,2027:69,2028:75,2029:80,2030:84,2031:87,2032:89,2033:90,2034:91,2035:92}},{n:"Sri Lanka",f:"🇱🇰",y:{2025:60,2026:68,2027:74,2028:80,2029:85,2030:88,2031:90,2032:91,2033:92,2034:93,2035:93}}],
+    "southeast-asia":[{n:"Philippines",f:"🇵🇭",y:{2025:70,2026:78,2027:83,2028:87,2029:91,2030:93,2031:94,2032:95,2033:95,2034:96,2035:96}},{n:"Malaysia",f:"🇲🇾",y:{2025:60,2026:68,2027:74,2028:80,2029:85,2030:88,2031:90,2032:91,2033:92,2034:93,2035:93}},{n:"Indonesia",f:"🇮🇩",y:{2025:42,2026:52,2027:61,2028:68,2029:75,2030:80,2031:83,2032:85,2033:87,2034:88,2035:89}},{n:"Singapore",f:"🇸🇬",y:{2025:68,2026:76,2027:82,2028:86,2029:89,2030:91,2031:92,2032:93,2033:94,2034:94,2035:95}}],
+    "east-asia":[{n:"China",f:"🇨🇳",y:{2025:66,2026:73,2027:79,2028:84,2029:88,2030:91,2031:92,2032:93,2033:93,2034:94,2035:94}},{n:"Japan",f:"🇯🇵",y:{2025:72,2026:78,2027:83,2028:87,2029:90,2030:92,2031:93,2032:94,2033:94,2034:95,2035:95}},{n:"South Korea",f:"🇰🇷",y:{2025:70,2026:77,2027:82,2028:86,2029:90,2030:92,2031:93,2032:94,2033:94,2034:95,2035:95}},{n:"Taiwan",f:"🇹🇼",y:{2025:65,2026:72,2027:78,2028:83,2029:87,2030:90,2031:91,2032:92,2033:93,2034:93,2035:94}}],
+    "latam":[{n:"Brazil",f:"🇧🇷",y:{2025:38,2026:46,2027:55,2028:63,2029:70,2030:75,2031:79,2032:82,2033:84,2034:85,2035:86}},{n:"Mexico",f:"🇲🇽",y:{2025:42,2026:50,2027:58,2028:65,2029:72,2030:77,2031:80,2032:83,2033:85,2034:86,2035:87}},{n:"Colombia",f:"🇨🇴",y:{2025:30,2026:38,2027:46,2028:54,2029:61,2030:67,2031:71,2032:75,2033:77,2034:79,2035:80}},{n:"Chile",f:"🇨🇱",y:{2025:35,2026:44,2027:52,2028:60,2029:67,2030:72,2031:76,2032:79,2033:81,2034:83,2035:84}}],
+    "middle-east":[{n:"UAE",f:"🇦🇪",y:{2025:60,2026:68,2027:75,2028:81,2029:86,2030:89,2031:91,2032:92,2033:93,2034:93,2035:94}},{n:"Saudi Arabia",f:"🇸🇦",y:{2025:50,2026:59,2027:67,2028:73,2029:79,2030:83,2031:86,2032:88,2033:89,2034:90,2035:90}},{n:"Egypt",f:"🇪🇬",y:{2025:28,2026:36,2027:44,2028:52,2029:59,2030:65,2031:69,2032:73,2033:75,2034:77,2035:78}}],
+    "africa":[{n:"South Africa",f:"🇿🇦",y:{2025:35,2026:42,2027:50,2028:58,2029:65,2030:70,2031:73,2032:76,2033:78,2034:79,2035:80}},{n:"Nigeria",f:"🇳🇬",y:{2025:16,2026:22,2027:30,2028:38,2029:46,2030:53,2031:58,2032:63,2033:66,2034:68,2035:70}},{n:"Kenya",f:"🇰🇪",y:{2025:22,2026:30,2027:38,2028:46,2029:54,2030:60,2031:64,2032:68,2033:71,2034:72,2035:74}}],
+    "oceania":[{n:"Australia",f:"🇦🇺",y:{2025:63,2026:72,2027:78,2028:83,2029:87,2030:89,2031:91,2032:92,2033:93,2034:93,2035:94}},{n:"New Zealand",f:"🇳🇿",y:{2025:58,2026:66,2027:73,2028:79,2029:84,2030:87,2031:89,2032:91,2033:92,2034:92,2035:93}}],
+  };
+
+  const CONTINENTS=[
+    [[-10,130],[-10,142],[-38,147],[-38,115],[-22,114],[-10,130]],
+    [[37,-9],[37,37],[12,44],[-11,40],[-35,19],[-35,-17],[0,-18],[15,-17],[37,-5]],
+    [[55,37],[55,80],[28,62],[28,90],[20,105],[10,104],[6,116],[28,105],[45,135],[55,135],[71,28],[37,60],[22,60],[12,44],[37,27],[37,37],[55,37]],
+    [[28,62],[28,90],[8,80],[8,76],[22,68],[28,62]],
+    [[28,90],[28,105],[10,104],[1,104],[6,116],[12,109],[20,105],[28,90]],
+    [[70,-140],[70,-60],[55,-55],[45,-53],[25,-77],[10,-83],[8,-77],[15,-88],[22,-105],[32,-117],[48,-124],[60,-137],[70,-140]],
+    [[10,-73],[0,-50],[-10,-37],[-34,-53],[-55,-67],[-42,-73],[-18,-70],[-5,-80],[8,-77],[10,-73]]
+  ];
+  const STARS=Array.from({length:120},(_,i)=>({x:Math.sin(i*137.5)*.5+.5,y:Math.sin(i*73.1+2)*.5+.5,r:i%3===0?1.2:.6,a:(Math.sin(i*53)*.4+.6)*.35}));
+
+  function project(lat,lng,rotY,rotX,R){
+    const phi=(90-lat)*Math.PI/180,theta=(lng+180)*Math.PI/180;
+    let x=Math.sin(phi)*Math.cos(theta),y=Math.cos(phi),z=Math.sin(phi)*Math.sin(theta);
+    const cy=Math.cos(rotY),sy=Math.sin(rotY);[x,z]=[x*cy-z*sy,x*sy+z*cy];
+    const cx2=Math.cos(rotX),sx=Math.sin(rotX);[y,z]=[y*cx2-z*sx,y*sx+z*cx2];
+    return{sx:x*R,sy:-y*R,z,vis:z>-0.05};
+  }
+
+  function GlobeCanvas({year,selId,hovId,onSelect,onHover}){
+    const ref=useRef(null);
+    const rot=useRef({y:0.3,x:0.12});
+    const drag=useRef({on:false,lx:0,ly:0,moved:false});
+    const auto=useRef(true);
+    const timer=useRef(null);
+    const raf=useRef(null);
+    const hitTest=useCallback((mx,my,R,cx,cy)=>{
+      let best=null,bd=36;
+      Object.entries(REGIONS).forEach(([id,r])=>{
+        const yr=r.yearly[year];if(!yr)return;
+        const p=project(r.lat,r.lng,rot.current.y,rot.current.x,R);if(!p.vis)return;
+        const h=(yr.risk/100)*55+10,nl=Math.sqrt(p.sx*p.sx+p.sy*p.sy)||1;
+        const tx=cx+p.sx+(p.sx/nl)*h,ty=cy+p.sy+(p.sy/nl)*h;
+        const d=Math.hypot(mx-tx,my-ty);if(d<bd){bd=d;best=id;}
+      });return best;
+    },[year]);
+    useEffect(()=>{
+      const canvas=ref.current;if(!canvas)return;
+      const ctx=canvas.getContext('2d');let alive=true;
+      const draw=()=>{
+        if(!alive)return;
+        const W=canvas.width,H=canvas.height,cx=W/2,cy=H/2,R=Math.min(W,H)*0.40;
+        ctx.clearRect(0,0,W,H);
+        STARS.forEach(s=>{ctx.fillStyle=`rgba(180,210,255,${s.a})`;ctx.beginPath();ctx.arc(s.x*W,s.y*H,s.r,0,Math.PI*2);ctx.fill();});
+        const atm=ctx.createRadialGradient(cx,cy,R*.9,cx,cy,R*1.22);atm.addColorStop(0,'rgba(60,120,255,0.1)');atm.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=atm;ctx.beginPath();ctx.arc(cx,cy,R*1.22,0,Math.PI*2);ctx.fill();
+        const sg=ctx.createRadialGradient(cx-R*.3,cy-R*.25,R*.05,cx,cy,R);sg.addColorStop(0,'#0e2a5a');sg.addColorStop(.5,'#071830');sg.addColorStop(1,'#040e1d');ctx.beginPath();ctx.arc(cx,cy,R,0,Math.PI*2);ctx.fillStyle=sg;ctx.fill();
+        ctx.strokeStyle='rgba(60,100,200,0.12)';ctx.lineWidth=0.5;
+        for(let lat=-60;lat<=60;lat+=30){ctx.beginPath();let f=true;for(let lng=-180;lng<=180;lng+=5){const p=project(lat,lng,rot.current.y,rot.current.x,R);if(!p.vis){f=true;continue;}f?ctx.moveTo(cx+p.sx,cy+p.sy):ctx.lineTo(cx+p.sx,cy+p.sy);f=false;}ctx.stroke();}
+        for(let lng=-180;lng<180;lng+=30){ctx.beginPath();let f=true;for(let lat=-85;lat<=85;lat+=5){const p=project(lat,lng,rot.current.y,rot.current.x,R);if(!p.vis){f=true;continue;}f?ctx.moveTo(cx+p.sx,cy+p.sy):ctx.lineTo(cx+p.sx,cy+p.sy);f=false;}ctx.stroke();}
+        CONTINENTS.forEach(pts=>{ctx.beginPath();let s=false;pts.forEach(([la,lo])=>{const p=project(la,lo,rot.current.y,rot.current.x,R);if(!p.vis){s=false;return;}s?ctx.lineTo(cx+p.sx,cy+p.sy):ctx.moveTo(cx+p.sx,cy+p.sy);s=true;});ctx.closePath();ctx.fillStyle='rgba(30,80,160,0.38)';ctx.fill();ctx.strokeStyle='rgba(80,150,255,0.5)';ctx.lineWidth=0.8;ctx.stroke();});
+        Object.entries(REGIONS).forEach(([id,region])=>{
+          const yr=region.yearly[year];if(!yr)return;
+          const col=riskColor(yr.risk),p=project(region.lat,region.lng,rot.current.y,rot.current.x,R);if(!p.vis)return;
+          const x=cx+p.sx,y=cy+p.sy,sH=(yr.risk/100)*55+10,nl=Math.sqrt(p.sx*p.sx+p.sy*p.sy)||1;
+          const nx=p.sx/nl,ny=p.sy/nl,active=id===selId||id===hovId;
+          ctx.save();ctx.globalAlpha=active?1:0.8;if(active){ctx.shadowColor=col;ctx.shadowBlur=16;}
+          const sg2=ctx.createLinearGradient(x,y,x+nx*sH,y+ny*sH);sg2.addColorStop(0,col+'66');sg2.addColorStop(1,col);
+          ctx.strokeStyle=sg2;ctx.lineWidth=active?4:2.2;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+nx*sH,y+ny*sH);ctx.stroke();
+          ctx.shadowBlur=active?18:6;ctx.fillStyle=active?'#fff':col;ctx.beginPath();ctx.arc(x+nx*sH,y+ny*sH,active?5:3.2,0,Math.PI*2);ctx.fill();
+          if(active||yr.risk>=68){const lx=x+nx*(sH+12),ly=y+ny*(sH+12);ctx.font=`bold ${active?11:9}px monospace`;ctx.textAlign='center';ctx.textBaseline='middle';const tw=ctx.measureText(`${yr.risk}%`).width;ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fillRect(lx-tw/2-3,ly-7,tw+6,14);ctx.fillStyle=active?'#fff':col;ctx.fillText(`${yr.risk}%`,lx,ly);}
+          ctx.restore();
+        });
+        ctx.beginPath();ctx.arc(cx,cy,R,0,Math.PI*2);ctx.strokeStyle='rgba(80,140,255,0.18)';ctx.lineWidth=1.5;ctx.stroke();
+        const hl=ctx.createRadialGradient(cx-R*.4,cy-R*.35,0,cx-R*.2,cy-R*.15,R*.55);hl.addColorStop(0,'rgba(255,255,255,0.07)');hl.addColorStop(1,'rgba(255,255,255,0)');ctx.beginPath();ctx.arc(cx,cy,R,0,Math.PI*2);ctx.fillStyle=hl;ctx.fill();
+        if(auto.current)rot.current.y+=0.004;
+        raf.current=requestAnimationFrame(draw);
+      };
+      draw();return()=>{alive=false;cancelAnimationFrame(raf.current);};
+    },[year,selId,hovId]);
+    const getXY=e=>{const r=ref.current.getBoundingClientRect();const s=e.touches?e.touches[0]:e;return{x:(s.clientX-r.left)*(ref.current.width/r.width),y:(s.clientY-r.top)*(ref.current.height/r.height),cx:ref.current.width/2,cy:ref.current.height/2,R:Math.min(ref.current.width,ref.current.height)*0.40};};
+    const onDown=e=>{const{x,y}=getXY(e);drag.current={on:true,lx:x,ly:y,moved:false};auto.current=false;clearTimeout(timer.current);};
+    const onMove=e=>{const{x,y,cx,cy,R}=getXY(e);if(drag.current.on){rot.current.y+=(x-drag.current.lx)*0.008;rot.current.x=Math.max(-1.2,Math.min(1.2,rot.current.x+(y-drag.current.ly)*0.008));drag.current.lx=x;drag.current.ly=y;drag.current.moved=true;}else{const f=hitTest(x,y,R,cx,cy);if(f!==hovId)onHover(f);}};
+    const onUp=e=>{if(!drag.current.on)return;if(!drag.current.moved){const{x,y,cx,cy,R}=getXY(e);const f=hitTest(x,y,R,cx,cy);onSelect(f===selId?null:f);}drag.current.on=false;timer.current=setTimeout(()=>auto.current=true,3000);};
+    return <canvas ref={ref} width={500} height={500} style={{cursor:hovId?'pointer':'grab',display:'block',width:'100%',height:'100%'}} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={()=>onHover(null)} onTouchStart={e=>{e.preventDefault();onDown(e);}} onTouchMove={e=>{e.preventDefault();onMove(e);}} onTouchEnd={onUp}/>;
+  }
+
+  const YF={2025:1,2026:1.22,2027:1.44,2028:1.66,2029:1.88,2030:2.1,2031:2.32,2032:2.54,2033:2.76,2034:2.88,2035:3.0};
+  const LOSING=[{n:"Data Entry",i:"📋",b:42},{n:"Claims Processing",i:"📄",b:38},{n:"Customer Back-Office",i:"📞",b:35},{n:"Accounts Payable",i:"💳",b:33},{n:"Payroll Admin",i:"💰",b:28},{n:"Document Mgmt",i:"📂",b:26},{n:"HR Administration",i:"👥",b:21},{n:"IT Helpdesk T1",i:"🖥️",b:19}];
+  const GAINING=[{n:"AI Model Training",i:"🤖",b:68},{n:"AI Governance",i:"🛡️",b:54},{n:"Prompt Engineering",i:"✍️",b:47},{n:"Process Automation",i:"⚙️",b:38},{n:"Data Strategy",i:"📊",b:35},{n:"AI Customer Exp.",i:"💬",b:29},{n:"Cybersecurity AI",i:"🔒",b:26},{n:"Complex Case Mgmt",i:"🧩",b:18}];
+
+  function LeftPanel({year}){
+    const yf=YF[year]||1;
+    return <div style={{height:'100%',overflowY:'auto',background:C.panel,fontFamily:'system-ui,sans-serif'}}>
+      <div style={{padding:'10px 10px 6px',borderBottom:`1px solid ${C.border}`}}>
+        <div style={{fontSize:8,fontWeight:700,letterSpacing:'1.5px',textTransform:'uppercase',color:C.red,marginBottom:6,display:'flex',alignItems:'center',gap:5}}><div style={{width:6,height:6,borderRadius:'50%',background:C.red}}/>Automated Away</div>
+        {LOSING.map(ind=>{const pct=Math.min(Math.round(ind.b*yf),100);return(
+          <div key={ind.n} style={{display:'flex',alignItems:'center',gap:6,padding:'3px 0',borderBottom:'1px solid rgba(0,0,0,0.04)'}}>
+            <div style={{width:22,height:22,borderRadius:6,background:'rgba(229,62,62,0.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,flexShrink:0}}>{ind.i}</div>
+            <div style={{flex:1,minWidth:0}}><div style={{fontSize:9,fontWeight:600,color:C.text,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{ind.n}</div><Bar pct={pct} color={C.red} h={3}/></div>
+            <div style={{fontSize:10,fontWeight:700,color:'#c53030',minWidth:30,textAlign:'right'}}>−{pct}%</div>
+          </div>);})}
+      </div>
+      <div style={{padding:'10px 10px 6px',borderBottom:`1px solid ${C.border}`}}>
+        <div style={{fontSize:8,fontWeight:700,letterSpacing:'1.5px',textTransform:'uppercase',color:C.green,marginBottom:6,display:'flex',alignItems:'center',gap:5}}><div style={{width:6,height:6,borderRadius:'50%',background:C.green}}/>Roles Being Born</div>
+        {GAINING.map(ind=>{const pct=Math.min(Math.round(ind.b*yf),100);return(
+          <div key={ind.n} style={{display:'flex',alignItems:'center',gap:6,padding:'3px 0',borderBottom:'1px solid rgba(0,0,0,0.04)'}}>
+            <div style={{width:22,height:22,borderRadius:6,background:'rgba(56,161,105,0.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,flexShrink:0}}>{ind.i}</div>
+            <div style={{flex:1,minWidth:0}}><div style={{fontSize:9,fontWeight:600,color:C.text,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{ind.n}</div><Bar pct={pct} color={C.green} h={3}/></div>
+            <div style={{fontSize:10,fontWeight:700,color:C.green,minWidth:30,textAlign:'right'}}>+{pct}%</div>
+          </div>);})}
+      </div>
+      <div style={{padding:'8px 10px'}}>
+        {[['#ff1a33','Critical 85%+'],['#ff6600','Severe 70–84%'],['#ffaa00','High 55–69%'],['#ddc200','Moderate 40–54%'],['#22cc55','Emerging <40%']].map(([col,l])=>(
+          <div key={l} style={{display:'flex',alignItems:'center',gap:6,marginBottom:4,fontSize:9,color:C.muted}}><div style={{width:7,height:7,borderRadius:'50%',background:col,flexShrink:0}}/>{l}</div>))}
+      </div>
+    </div>;
+  }
+
+  function RightPanel({year,selId,hovId}){
+    const [open,setOpen]=useState(new Set());
+    const id=selId||hovId;
+    if(id&&REGIONS[id]){
+      const region=REGIONS[id],yr=region.yearly[year];
+      const col=riskColor(yr.risk),net=(yr.displaced-yr.newRoles).toFixed(2);
+      const allYears=Object.keys(region.yearly).map(Number).sort((a,b)=>a-b);
+      return <div style={{padding:10,fontFamily:'system-ui,sans-serif',height:'100%',overflowY:'auto',background:C.panel}}>
+        <div style={{fontSize:8,fontWeight:700,letterSpacing:'1.5px',textTransform:'uppercase',color:C.muted,marginBottom:8}}>Regional Intel · {year}</div>
+        <div style={{fontFamily:'Georgia,serif',fontSize:16,color:C.text,marginBottom:2}}>{region.name}</div>
+        <div style={{display:'inline-block',padding:'2px 8px',borderRadius:10,fontSize:9,fontWeight:700,background:`${col}20`,color:col,border:`1px solid ${col}40`,marginBottom:10}}>{riskLabel(yr.risk)} · {yr.risk}%</div>
+        <Bar pct={yr.risk} color={col} h={5}/>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5,margin:'10px 0'}}>
+          {[['Roles at Risk',`${yr.displaced}M`,C.red],['Roles Emerging',`${yr.newRoles}M`,C.green],['Gap',`−${net}M`,C.orange],['Auto.',`${yr.automation}%`,C.accent]].map(([l,v,c2])=>(
+            <div key={l} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:7,padding:'6px 8px'}}>
+              <div style={{fontSize:7,fontWeight:700,letterSpacing:'1px',textTransform:'uppercase',color:C.muted,marginBottom:1}}>{l}</div>
+              <div style={{fontSize:14,fontWeight:700,color:c2}}>{v}</div>
+            </div>))}
+        </div>
+        <div style={{fontSize:8,fontWeight:700,letterSpacing:'1px',textTransform:'uppercase',color:C.muted,marginBottom:5}}>2025–2035 Trajectory</div>
+        <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:7,padding:6,display:'flex',gap:1,marginBottom:8}}>
+          {allYears.map(y=>{const d=region.yearly[y],c=riskColor(d.risk),sel=y===year;return(
+            <div key={y} style={{flex:'0 0 auto',textAlign:'center',minWidth:18}}>
+              <div style={{height:30,display:'flex',alignItems:'flex-end',justifyContent:'center',marginBottom:1}}>
+                <div style={{width:10,height:`${(d.risk/100)*30}px`,background:c,opacity:sel?1:0.3,borderRadius:'2px 2px 0 0',boxShadow:sel?`0 0 5px ${c}`:''}}/>
+              </div>
+              <div style={{fontSize:5,color:sel?C.accent:C.muted,fontWeight:sel?700:400}}>{y}</div>
+            </div>);})}
+        </div>
+        <div style={{fontSize:8,fontWeight:700,letterSpacing:'1px',textTransform:'uppercase',color:C.muted,marginBottom:4}}>Key Sectors</div>
+        {region.sectors.map(s=><div key={s} style={{fontSize:9,color:C.dim,padding:'2px 0',borderBottom:`1px solid ${C.border}`}}>→ {s}</div>)}
+      </div>;
+    }
+    const sorted=Object.entries(REGIONS).sort((a,b)=>b[1].yearly[year].risk-a[1].yearly[year].risk);
+    return <div style={{padding:10,fontFamily:'system-ui,sans-serif',height:'100%',overflowY:'auto',background:C.panel}}>
+      <div style={{fontSize:8,fontWeight:700,letterSpacing:'1.5px',textTransform:'uppercase',color:C.muted,marginBottom:8}}>Exposure Index · {year}</div>
+      {sorted.map(([rid,r])=>{
+        const yr=r.yearly[year],c=riskColor(yr.risk),isOpen=open.has(rid);
+        const cts=(COUNTRIES_BY_REGION[rid]||[]).sort((a,b)=>(b.y[year]||0)-(a.y[year]||0));
+        return <div key={rid} style={{marginBottom:4,background:C.card,border:`1px solid ${C.border}`,borderRadius:8,overflow:'hidden'}}>
+          <div style={{display:'flex',alignItems:'center',gap:6,padding:'6px 8px',cursor:'pointer'}} onClick={()=>setOpen(prev=>{const s=new Set(prev);s.has(rid)?s.delete(rid):s.add(rid);return s;})}>
+            <div style={{width:7,height:7,borderRadius:'50%',background:c,flexShrink:0}}/>
+            <div style={{flex:1,minWidth:0}}><div style={{fontSize:10,fontWeight:600,color:C.text}}>{r.name}</div><Bar pct={yr.risk} color={c} h={2}/></div>
+            <div style={{textAlign:'right'}}><div style={{fontSize:11,fontWeight:700,color:c}}>{yr.risk}%</div><div style={{fontSize:8,color:C.red}}>{yr.displaced}M</div></div>
+            <div style={{fontSize:8,color:C.muted,transition:'transform 0.2s',transform:isOpen?'rotate(90deg)':'none'}}>▶</div>
+          </div>
+          {isOpen&&<div style={{borderTop:`1px solid ${C.border}`,background:'rgba(0,0,0,0.02)'}}>
+            {cts.map(ct=>{const cr=ct.y[year]||0,cc=riskColor(cr);return(
+              <div key={ct.n} style={{display:'flex',alignItems:'center',gap:5,padding:'4px 7px',borderBottom:'1px solid rgba(0,0,0,0.04)'}}>
+                <span style={{fontSize:11}}>{ct.f}</span>
+                <div style={{flex:1,minWidth:0}}><div style={{fontSize:9,fontWeight:600,color:C.text}}>{ct.n}</div><Bar pct={cr} color={cc} h={2}/></div>
+                <div style={{fontSize:10,fontWeight:700,color:cc,minWidth:28,textAlign:'right'}}>{cr}%</div>
+              </div>);})}
+          </div>}
+        </div>;})}
+    </div>;
+  }
+
+  const OBS_YEARS=[2000,2002,2004,2006,2008,2010,2012,2014,2016,2018,2020,2022,2024,2026,2028,2030];
+  const RD={'North America':[18.2,19.1,20.4,22.1,20.8,19.9,21.2,22.8,23.9,24.6,22.1,23.4,22.0,18.9,15.2,11.4],'Europe':[22.4,23.1,24.2,25.8,23.9,22.1,22.8,23.9,24.7,25.1,22.8,23.6,22.4,19.1,15.8,12.3],'South Asia':[2.1,3.4,5.2,7.8,10.2,13.1,16.4,20.2,24.8,29.4,27.6,30.1,31.8,28.4,22.1,16.8],'SE Asia':[3.2,4.1,5.4,7.2,9.1,11.4,13.8,16.2,18.9,21.3,19.4,21.8,22.6,20.1,16.4,12.9],'East Asia':[28.4,31.2,34.8,38.9,36.4,38.2,42.1,46.8,50.2,52.8,49.1,51.4,50.8,45.2,37.4,28.9],'Latin America':[8.4,9.2,10.8,12.4,11.9,12.8,14.2,15.9,17.1,18.4,16.8,18.2,18.9,17.1,14.8,11.9],'Middle East':[2.8,3.2,3.8,4.6,5.2,6.1,7.2,8.4,9.8,11.2,10.1,11.4,12.1,10.8,8.9,6.8],'Africa':[4.2,4.8,5.6,6.8,7.9,9.2,11.1,13.4,16.2,19.8,18.4,21.2,23.8,24.1,22.4,19.8],'Oceania':[2.1,2.2,2.4,2.6,2.4,2.3,2.5,2.7,2.9,3.1,2.8,3.0,2.9,2.5,2.0,1.5]};
+  const RC={'North America':'#3b6ef5','Europe':'#8b5cf6','South Asia':'#ff1a33','SE Asia':'#ff6600','East Asia':'#ffaa00','Latin America':'#22cc55','Middle East':'#00c9ff','Africa':'#ff69b4','Oceania':'#aee8b0'};
+  const SD={'Data Entry':[42.1,44.8,47.2,50.1,48.4,47.2,49.1,51.2,52.8,53.4,49.1,50.2,46.8,38.4,28.9,19.4],'Customer Service':[28.4,30.1,32.8,36.2,34.1,33.8,36.4,39.2,41.8,43.6,39.4,42.1,40.8,34.2,25.8,17.4],'Finance & Acctg':[18.2,19.4,21.1,23.4,21.8,21.2,22.8,24.6,26.2,27.8,25.1,26.8,25.4,21.2,16.1,11.2],'AI & ML':[0,0,0.1,0.2,0.4,0.8,1.8,3.2,5.8,10.2,16.4,24.8,34.2,46.8,58.4,68.2],'Data Science':[0.1,0.2,0.4,0.8,1.8,3.4,6.2,10.4,16.2,22.8,28.4,34.1,40.2,48.6,56.4,62.8],'Automation Eng':[0.2,0.4,0.8,1.4,2.2,3.8,6.4,10.2,15.8,22.4,28.1,34.8,42.1,51.4,59.8,66.4]};
+  const SC={'Data Entry':'#e53e3e','Customer Service':'#dd6b20','Finance & Acctg':'#d69e2e','AI & ML':'#38a169','Data Science':'#319795','Automation Eng':'#3b6ef5'};
+  const AP={'Data Entry':[2,3,5,8,12,18,26,36,48,60,71,80,88,93,96,98],'Customer Svc':[1,2,3,5,8,13,20,29,40,52,63,74,82,88,92,95],'Finance Ops':[3,4,6,9,14,20,28,38,50,62,72,81,87,92,95,97],'HR & Payroll':[2,3,5,7,10,16,24,34,46,58,68,77,84,89,93,96],'Supply Chain':[4,5,8,12,17,24,33,44,55,66,75,83,88,92,95,97]};
+  const APC={'Data Entry':'#e53e3e','Customer Svc':'#dd6b20','Finance Ops':'#d69e2e','HR & Payroll':'#c05621','Supply Chain':'#2b6cb0'};
+
+  function LineChart({datasets,years,title,yFmt,h=220}){
+    const ref=useRef(null);
+    useEffect(()=>{
+      const c=ref.current;if(!c)return;
+      const ctx=c.getContext('2d'),W=c.width,H=c.height,P={t:24,r:14,b:40,l:46};
+      const CW=W-P.l-P.r,CH=H-P.t-P.b;
+      ctx.clearRect(0,0,W,H);ctx.fillStyle='#111e33';ctx.fillRect(0,0,W,H);
+      let maxV=0;datasets.forEach(ds=>ds.data.forEach(v=>{if(v>maxV)maxV=v;}));maxV=maxV*1.1||10;
+      for(let i=0;i<=4;i++){const y=P.t+CH-(i/4)*CH;ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(P.l,y);ctx.lineTo(P.l+CW,y);ctx.stroke();ctx.fillStyle='rgba(255,255,255,0.4)';ctx.font='8px monospace';ctx.textAlign='right';ctx.textBaseline='middle';ctx.fillText(yFmt?yFmt((i/4)*maxV):((i/4)*maxV).toFixed(0),P.l-3,y);}
+      const pi=years.indexOf(2024);if(pi>=0){const px=P.l+(pi/(years.length-1))*CW;ctx.fillStyle='rgba(255,170,0,0.04)';ctx.fillRect(px,P.t,P.l+CW-px,CH);ctx.strokeStyle='rgba(255,170,0,0.3)';ctx.setLineDash([4,4]);ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(px,P.t);ctx.lineTo(px,P.t+CH);ctx.stroke();ctx.setLineDash([]);}
+      years.forEach((yr,i)=>{if(i%4!==0&&i!==years.length-1)return;const x=P.l+(i/(years.length-1))*CW;ctx.fillStyle=yr>=2024?'rgba(255,170,0,0.7)':'rgba(255,255,255,0.35)';ctx.font='8px monospace';ctx.textAlign='center';ctx.textBaseline='top';ctx.fillText(yr,x,P.t+CH+5);});
+      datasets.forEach(ds=>{ctx.globalAlpha=ds.dim?0.15:1;ctx.strokeStyle=ds.color;ctx.lineWidth=ds.dim?1:1.8;ctx.beginPath();ds.data.forEach((v,i)=>{const x=P.l+(i/(years.length-1))*CW,y=P.t+CH-(v/maxV)*CH;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});ctx.stroke();ctx.globalAlpha=1;});
+      if(title){ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='bold 9px system-ui';ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText(title,P.l,6);}
+    },[datasets,years,title,yFmt]);
+    return <canvas ref={ref} width={700} height={h} style={{width:'100%',height:'auto',display:'block',borderRadius:8}}/>;
+  }
+
+  function DataObservatory(){
+    const [view,setView]=useState('region');
+    const [activeR,setActiveR]=useState(new Set(Object.keys(RD)));
+    const [activeS,setActiveS]=useState(new Set(Object.keys(SD)));
+    const togR=r=>setActiveR(p=>{const s=new Set(p);s.has(r)?(s.size>1&&s.delete(r)):s.add(r);return s;});
+    const togS=s=>setActiveS(p=>{const ns=new Set(p);ns.has(s)?(ns.size>1&&ns.delete(s)):ns.add(s);return ns;});
+    const VIEWS=[['region','🗺 Region'],['sector','🏭 Sector'],['auto','🤖 Automation %']];
+    const vb=a=>({background:a?C.accent:'transparent',color:a?'#fff':C.darkMuted,border:`1px solid ${a?C.accent:C.darkBorder}`,padding:'5px 11px',borderRadius:7,fontSize:10,fontWeight:700,cursor:'pointer',fontFamily:'system-ui,sans-serif'});
+    const tb=(a,col)=>({background:a?col+'33':'transparent',color:a?col:C.darkMuted,border:`1px solid ${col+'55'}`,padding:'2px 8px',borderRadius:16,fontSize:9,fontWeight:700,cursor:'pointer',fontFamily:'system-ui,sans-serif'});
+    return <div style={{height:'100%',overflowY:'auto',background:C.bg,padding:'18px 20px',fontFamily:'system-ui,sans-serif'}}>
+      <div style={{maxWidth:1000,margin:'0 auto'}}>
+        <div style={{fontFamily:'Georgia,serif',fontSize:18,color:C.darkText,marginBottom:2}}>Data Observatory</div>
+        <div style={{fontSize:10,color:C.darkMuted,marginBottom:14}}>2000–2024 historical · 2025–2030 projected <span style={{color:'#ffaa00',fontWeight:700}}>★</span></div>
+        <div style={{display:'flex',gap:5,marginBottom:14}}>{VIEWS.map(([v,l])=><button key={v} onClick={()=>setView(v)} style={vb(view===v)}>{l}</button>)}</div>
+        {view==='region'&&<>
+          <div style={{display:'flex',gap:4,flexWrap:'wrap',marginBottom:10}}>{Object.keys(RD).map(r=><button key={r} onClick={()=>togR(r)} style={tb(activeR.has(r),RC[r])}>{r}</button>)}</div>
+          <div style={{background:C.darkCard,borderRadius:10,padding:12,marginBottom:12,border:`1px solid ${C.darkBorder}`}}>
+            <LineChart datasets={Object.entries(RD).map(([r,d])=>({color:RC[r],data:d,dim:!activeR.has(r)}))} years={OBS_YEARS} title="Back-Office Workers by Region (Millions)" yFmt={v=>v.toFixed(0)+'M'}/>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))',gap:7}}>
+            {Object.entries(RD).map(([r,d])=>{const col=RC[r],net=((d[d.length-1]-d[0])/d[0]*100).toFixed(0);return(
+              <div key={r} onClick={()=>togR(r)} style={{background:activeR.has(r)?`${col}18`:C.darkCard,border:`1px solid ${activeR.has(r)?col:C.darkBorder}`,borderRadius:9,padding:'9px 11px',cursor:'pointer'}}>
+                <div style={{display:'flex',alignItems:'center',gap:5,marginBottom:6}}><div style={{width:7,height:7,borderRadius:'50%',background:col}}/><div style={{fontSize:10,fontWeight:700,color:C.darkText}}>{r}</div></div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:3,textAlign:'center'}}>
+                  <div><div style={{fontSize:12,fontWeight:700,color:col}}>{d[0]}M</div><div style={{fontSize:7,color:C.darkMuted}}>2000</div></div>
+                  <div><div style={{fontSize:12,fontWeight:700,color:parseFloat(net)>=0?C.green:C.red}}>{net>0?'+':''}{net}%</div><div style={{fontSize:7,color:C.darkMuted}}>net chg</div></div>
+                </div>
+              </div>);})}
+          </div>
+        </>}
+        {view==='sector'&&<>
+          <div style={{display:'flex',gap:4,flexWrap:'wrap',marginBottom:10}}>{Object.keys(SD).map(s=><button key={s} onClick={()=>togS(s)} style={tb(activeS.has(s),SC[s])}>{s}</button>)}</div>
+          <div style={{background:C.darkCard,borderRadius:10,padding:12,border:`1px solid ${C.darkBorder}`}}>
+            <LineChart datasets={Object.entries(SD).map(([s,d])=>({color:SC[s],data:d,dim:!activeS.has(s)}))} years={OBS_YEARS} title="Global Workers by Job Sector (Millions)" yFmt={v=>v.toFixed(0)+'M'}/>
+          </div>
+        </>}
+        {view==='auto'&&<>
+          <div style={{background:C.darkCard,borderRadius:10,padding:12,marginBottom:12,border:`1px solid ${C.darkBorder}`}}>
+            <LineChart datasets={Object.entries(AP).map(([s,d])=>({color:APC[s],data:d,dim:false}))} years={OBS_YEARS} title="% of Tasks Automatable by AI — by Sector" yFmt={v=>v.toFixed(0)+'%'}/>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))',gap:7}}>
+            {Object.entries(AP).map(([s,d])=>{const col=APC[s];return(
+              <div key={s} style={{background:C.darkCard,border:`1px solid ${C.darkBorder}`,borderRadius:9,padding:'9px 11px'}}>
+                <div style={{display:'flex',alignItems:'center',gap:5,marginBottom:6}}><div style={{width:7,height:7,borderRadius:'50%',background:col}}/><div style={{fontSize:10,fontWeight:700,color:C.darkText}}>{s}</div></div>
+                <div style={{height:5,background:'rgba(255,255,255,0.1)',borderRadius:3,overflow:'hidden',marginBottom:6}}><div style={{height:'100%',width:`${d[d.length-1]}%`,background:col,borderRadius:3}}/></div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:3,textAlign:'center'}}>
+                  {[[d[0],'2000'],[d[8],'2016'],[d[d.length-1],'2030★']].map(([v,yr])=><div key={yr}><div style={{fontSize:11,fontWeight:700,color:col}}>{v}%</div><div style={{fontSize:7,color:C.darkMuted}}>{yr}</div></div>)}
+                </div>
+              </div>);})}
+          </div>
+        </>}
+      </div>
+    </div>;
+  }
+
+  const NATIONS=[
+    {r:"South Asia",n:"India",f:"🇮🇳",score:94,tag:"Maximum Exposure — The Perfect Storm",tagC:"#c53030",metrics:[{l:"Population",v:"1.43B",b:100,c:"#e53e3e"},{l:"AI Risk",v:"96%",b:96,c:"#ff4444"},{l:"Governance",v:"28/100",b:28,c:"#dd6b20"},{l:"Skill Gap",v:"81%",b:81,c:"#d69e2e"},{l:"Climate",v:"92%",b:92,c:"#805ad5"}],wildcards:["BPO Collapse","Youth Unemployment","Climate Migration","Caste Conflict","Air Quality Crisis"],analysis:"India faces the most acute convergence of compounding crises. With 1.43 billion people and ~12 million back-office workers directly in AI's crosshairs, the BPO sector — built on cheap English-speaking labour — is structurally obsolete. LLMs now do the work of entire floors at a fraction of the cost. 600M under-25s will hit the labour market exactly as AI absorbs entry-level jobs."},
+    {r:"SE Asia",n:"Philippines",f:"🇵🇭",score:88,tag:"BPO Nation — Existential AI Threat",tagC:"#c53030",metrics:[{l:"Population",v:"115M",b:8,c:"#e53e3e"},{l:"AI Risk",v:"91%",b:91,c:"#ff4444"},{l:"Governance",v:"36/100",b:36,c:"#dd6b20"},{l:"Skill Gap",v:"55%",b:55,c:"#d69e2e"},{l:"Climate",v:"94%",b:94,c:"#805ad5"}],wildcards:["BPO Collapse","Typhoon Intensification","Remittance Decline","Sea Level Rise"],analysis:"The Philippines built its economy on one bet: English-speaking labour for global back-office ops. BPO employs 1.3M Filipinos and accounts for ~9% of GDP. LLMs represent an existential threat. The country also sits in the western Pacific typhoon belt — among the most climate-exposed on Earth."},
+    {r:"South Asia",n:"Bangladesh",f:"🇧🇩",score:82,tag:"Garment Economy — Double Threat",tagC:"#c53030",metrics:[{l:"Population",v:"173M",b:12,c:"#e53e3e"},{l:"AI Risk",v:"89%",b:89,c:"#ff4444"},{l:"Governance",v:"32/100",b:32,c:"#dd6b20"},{l:"Skill Gap",v:"78%",b:78,c:"#d69e2e"},{l:"Climate",v:"98%",b:98,c:"#805ad5"}],wildcards:["Sea Level Rise","RMG Automation","Climate Displacement","Remittance Dependency"],analysis:"Bangladesh may be the most climate-vulnerable large economy. One-third floods annually; by 2050 up to 17% of land permanently inundated. The RMG sector employs ~4M workers. Robotic sewing and automated QC are already being piloted. Automation + climate + weak governance = extreme compound risk."},
+    {r:"Africa",n:"Nigeria",f:"🇳🇬",score:78,tag:"Demographics vs Infrastructure Gap",tagC:"#c05621",metrics:[{l:"Population",v:"220M",b:15,c:"#e53e3e"},{l:"AI Risk",v:"52%",b:52,c:"#ff8800"},{l:"Governance",v:"22/100",b:22,c:"#e53e3e"},{l:"Skill Gap",v:"84%",b:84,c:"#d69e2e"},{l:"Climate",v:"74%",b:74,c:"#805ad5"}],wildcards:["Informal Economy Exclusion","Youth Unemployment","Oil Revenue Decline","Gulf Remittance Collapse"],analysis:"Nigeria's AI story is less about displacement and more about exclusion — AI jobs flowing to Lagos while the rest is left behind. 60% youth unemployment in a country adding 5M new workers per year. The informal economy (60% of GDP) is invisible to policy."},
+    {r:"East Asia",n:"China",f:"🇨🇳",score:61,tag:"State-Managed Transition",tagC:"#d69e2e",metrics:[{l:"Population",v:"1.41B",b:99,c:"#e53e3e"},{l:"AI Risk",v:"88%",b:88,c:"#ff8800"},{l:"Governance",v:"52/100",b:52,c:"#d69e2e"},{l:"Skill Gap",v:"44%",b:44,c:"#d69e2e"},{l:"Climate",v:"68%",b:68,c:"#805ad5"}],wildcards:["Property Debt Crisis","US Tech Decoupling","Youth Unemployment","Demographic Collapse"],analysis:"China's governance structure is simultaneously its greatest liability and asset for AI transition: when the party decides on mass retraining, it happens. State enterprises can maintain employment during restructuring. But the property debt crisis + AI displacement creates a severe demand shock."},
+    {r:"North America",n:"United States",f:"🇺🇸",score:58,tag:"AI Inequality Amplifier",tagC:"#d69e2e",metrics:[{l:"Population",v:"335M",b:23,c:"#e53e3e"},{l:"AI Risk",v:"91%",b:91,c:"#ff8800"},{l:"Governance",v:"62/100",b:62,c:"#d69e2e"},{l:"Skill Gap",v:"42%",b:42,c:"#d69e2e"},{l:"Climate",v:"55%",b:55,c:"#805ad5"}],wildcards:["Political Polarisation","Heartland Displacement","Social Safety Net Gaps"],analysis:"The US is the world's AI laboratory but also its most unequal testing ground. 12M back-office workers face displacement concentrated in the Midwest and South. Coastal metros capture AI productivity gains; the heartland bears the cost. Political polarisation prevents coordinated policy response."},
+    {r:"Europe",n:"Germany",f:"🇩🇪",score:44,tag:"Industrial Giant — Slower to Adapt",tagC:"#276749",metrics:[{l:"Population",v:"84M",b:6,c:"#e53e3e"},{l:"AI Risk",v:"82%",b:82,c:"#ff8800"},{l:"Governance",v:"78/100",b:78,c:"#38a169"},{l:"Skill Gap",v:"35%",b:35,c:"#38a169"},{l:"Climate",v:"42%",b:42,c:"#805ad5"}],wildcards:["Deindustrialisation","Energy Cost Crisis","Chinese EV Competition","Demographic Decline"],analysis:"Germany's social market economy provides structural cushions — strong unions, Kurzarbeit schemes, codetermination. But the industrial base faces a triple threat: energy prices, Chinese EV competition, and AI automation. Demographic decline means labour shortages buffer displacement."},
+    {r:"East Asia",n:"Japan",f:"🇯🇵",score:42,tag:"Demographic Collapse Meets AI Opportunity",tagC:"#276749",metrics:[{l:"Population",v:"125M",b:9,c:"#e53e3e"},{l:"AI Risk",v:"90%",b:90,c:"#ff8800"},{l:"Governance",v:"74/100",b:74,c:"#38a169"},{l:"Skill Gap",v:"28%",b:28,c:"#38a169"},{l:"Climate",v:"45%",b:45,c:"#805ad5"}],wildcards:["Demographic Collapse","Cultural Resistance","Deflation Trap"],analysis:"Japan is arguably the one economy where AI displacement is not a crisis but a solution — the country is running out of workers. 1.3M annual labour shortage projected by 2030. AI automation doesn't eliminate jobs; it fills vacancies. Cultural resistance slows adoption but prevents destabilising disruption."},
+    {r:"Oceania",n:"Australia",f:"🇦🇺",score:32,tag:"Lucky Country — Strong Institutions",tagC:"#276749",metrics:[{l:"Population",v:"26M",b:2,c:"#e53e3e"},{l:"AI Risk",v:"87%",b:87,c:"#ff8800"},{l:"Governance",v:"82/100",b:82,c:"#38a169"},{l:"Skill Gap",v:"22%",b:22,c:"#38a169"},{l:"Climate",v:"71%",b:71,c:"#805ad5"}],wildcards:["Bushfire/Flood Acceleration","Mining Automation","Chinese Trade Dependency"],analysis:"Australia faces high AI exposure but exceptional institutional capacity. Strong welfare state, skilled immigration, and resource exports provide fiscal space. The real risk is climate: Black Summer fires, flooding, extreme heat are redefining where in Australia is liveable."},
+  ];
+
+  function NationImpact(){
+    const [filter,setFilter]=useState('All');
+    const [expanded,setExpanded]=useState(null);
+    const regions=[...new Set(NATIONS.map(n=>n.r))];
+    const shown=filter==='All'?NATIONS:NATIONS.filter(n=>n.r===filter);
+    const sc=s=>s>=70?"#c53030":s>=50?"#dd6b20":s>=35?"#d69e2e":"#38a169";
+    const critical=NATIONS.filter(n=>n.score>=70).length;
+    const high=NATIONS.filter(n=>n.score>=50&&n.score<70).length;
+    const manageable=NATIONS.filter(n=>n.score<50).length;
+    return <div style={{height:'100%',overflowY:'auto',background:'#f0f4f8',padding:'20px 22px',fontFamily:'system-ui,sans-serif'}}>
+      <div style={{maxWidth:960,margin:'0 auto'}}>
+        <div style={{fontFamily:'Georgia,serif',fontSize:20,color:C.text,marginBottom:3}}>Nation-by-Nation Impact</div>
+        <div style={{fontSize:11,color:C.dim,marginBottom:14}}>Ranked by compound Crisis Score — AI exposure, governance capacity, skill gaps, and climate vulnerability.</div>
+        <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:14}}>
+          {[[C.red,critical,'Critical (70+)'],[C.orange,high,'High Risk (50–69)'],[C.green,manageable,'Manageable (<50)']].map(([col,v,l])=>(
+            <div key={l} style={{background:'#fff',border:'1px solid #e2e8f0',borderRadius:9,padding:'8px 14px',textAlign:'center',boxShadow:'0 1px 6px rgba(0,0,0,0.05)'}}>
+              <div style={{fontSize:22,fontWeight:700,color:col}}>{v}</div>
+              <div style={{fontSize:8,fontWeight:700,letterSpacing:'1px',color:C.muted,textTransform:'uppercase'}}>{l}</div>
+            </div>))}
+        </div>
+        <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:14}}>
+          {['All',...regions].map(r=><button key={r} onClick={()=>setFilter(r)} style={{background:filter===r?C.accent:'#fff',color:filter===r?'#fff':C.dim,border:`1px solid ${filter===r?C.accent:'#e2e8f0'}`,padding:'4px 11px',borderRadius:16,fontSize:10,fontWeight:700,cursor:'pointer',fontFamily:'system-ui,sans-serif'}}>{r}</button>)}
+        </div>
+        {shown.map((nation,i)=><div key={nation.n} style={{background:'#fff',borderRadius:12,border:'1px solid #e2e8f0',boxShadow:'0 2px 10px rgba(20,40,80,0.05)',marginBottom:12,overflow:'hidden'}}>
+          <div style={{display:'flex',alignItems:'flex-start',gap:12,padding:'14px 16px 10px',cursor:'pointer'}} onClick={()=>setExpanded(expanded===nation.n?null:nation.n)}>
+            <div style={{fontSize:32,flexShrink:0,lineHeight:1}}>{nation.f}</div>
+            <div style={{flex:1}}>
+              <div style={{fontFamily:'Georgia,serif',fontSize:16,color:C.text,marginBottom:1}}>{nation.n}</div>
+              <div style={{fontSize:8,fontWeight:700,letterSpacing:'1px',textTransform:'uppercase',color:C.muted,marginBottom:2}}>{nation.r}</div>
+              <div style={{fontSize:10,fontWeight:700,color:nation.tagC,marginBottom:5}}>{nation.tag}</div>
+              <div style={{display:'flex',flexWrap:'wrap',gap:4}}>{nation.wildcards.map(w=><span key={w} style={{background:`${nation.tagC}10`,color:nation.tagC,border:`1px solid ${nation.tagC}30`,padding:'1px 7px',borderRadius:9,fontSize:9,fontWeight:700}}>{w}</span>)}</div>
+            </div>
+            <div style={{textAlign:'right',flexShrink:0}}>
+              <div style={{fontSize:28,fontWeight:700,color:sc(nation.score),lineHeight:1}}>{nation.score}</div>
+              <div style={{fontSize:8,fontWeight:700,letterSpacing:'1px',textTransform:'uppercase',color:C.muted,marginTop:2}}>Crisis Score</div>
+              <div style={{fontSize:8,color:C.muted,marginTop:2}}>#{i+1} of {shown.length}</div>
+            </div>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:`repeat(${nation.metrics.length},1fr)`,borderTop:'1px solid #f0f4f8'}}>
+            {nation.metrics.map(m=><div key={m.l} style={{padding:'8px 6px',textAlign:'center',borderRight:'1px solid #f0f4f8'}}>
+              <div style={{fontSize:12,fontWeight:700,color:m.c,marginBottom:1}}>{m.v}</div>
+              <div style={{fontSize:7,fontWeight:600,letterSpacing:'0.8px',textTransform:'uppercase',color:C.muted,marginBottom:3}}>{m.l}</div>
+              <div style={{height:3,background:'#edf2f7',borderRadius:2}}><div style={{height:'100%',width:`${m.b}%`,background:m.c,opacity:0.7,borderRadius:2}}/></div>
+            </div>)}
+          </div>
+          {expanded===nation.n&&<div style={{padding:'12px 16px 14px',background:'#fafbfd',borderTop:'1px solid #f0f4f8',fontSize:11,color:C.dim,lineHeight:1.8}}>{nation.analysis}</div>}
+        </div>)}
+        <div style={{background:'#1a2340',borderRadius:12,padding:'20px 24px',marginTop:6,color:'#c8d8f0'}}>
+          <div style={{fontFamily:'Georgia,serif',fontSize:16,color:'#fff',marginBottom:8}}>The Universal Principle</div>
+          <div style={{fontSize:11,lineHeight:1.85}}>Across all nations: <strong style={{color:'#fff'}}>the quality of the transition is determined not by the speed of AI adoption, but by the strength of the institutions managing it.</strong> The governance gap between nations is, ultimately, the displacement gap.</div>
+        </div>
+      </div>
+    </div>;
+  }
+
+  const GDP_DATA=[
+    {name:"South Asia",flag:"🌏",gdp:5.2,col:"#ff1a33",net:"-0.8T",shocks:[{yr:"2025–26",label:"BPO Collapse Wave",impact:-1.4,jobs:2.1,desc:"India's BPO sector, Bangladesh garments — first large-scale displacement. GDP growth falls sharply."},{yr:"2027–28",label:"Compound Crisis",impact:-2.8,jobs:3.8,desc:"Climate shocks + automation combine. IMF interventions likely."},{yr:"2029–30",label:"Policy Response Lag",impact:-0.9,jobs:4.6,desc:"Retraining programs begin but reach only urban populations."},{yr:"2031–34",label:"Slow Recovery",impact:+0.6,jobs:5.1,desc:"Digital services economy grows in metros but recovery is geographically uneven."}],countries:[{n:"India",f:"🇮🇳",hit:-3.8,rec:"2033",at:"25M"},{n:"Bangladesh",f:"🇧🇩",hit:-4.2,rec:"2034",at:"6.8M"},{n:"Pakistan",f:"🇵🇰",hit:-2.9,rec:"2032",at:"4.1M"}]},
+    {name:"East Asia",flag:"🌏",gdp:22.1,col:"#9f7aea",net:"+8.9T",shocks:[{yr:"2025–26",label:"State-Managed Dip",impact:-0.6,jobs:1.5,desc:"China deploys mandatory retraining. Short-term dip absorbed by state enterprises."},{yr:"2027–28",label:"Property + AI Compound",impact:-2.1,jobs:3.8,desc:"China property debt crisis intersects with AI displacement."},{yr:"2029–30",label:"AI Export War",impact:-0.8,jobs:4.9,desc:"US-China decoupling forces costly parallel systems."},{yr:"2031–34",label:"AI Manufacturing Dominance",impact:+3.4,jobs:6.2,desc:"China, Japan, Korea become world's most productive AI-augmented economies."}],countries:[{n:"China",f:"🇨🇳",hit:-1.8,rec:"2030",at:"18M"},{n:"Japan",f:"🇯🇵",hit:-0.9,rec:"2029",at:"4.2M"},{n:"South Korea",f:"🇰🇷",hit:-1.1,rec:"2029",at:"2.1M"}]},
+    {name:"North America",flag:"🌎",gdp:28.5,col:"#3b6ef5",net:"+4.2T",shocks:[{yr:"2025–26",label:"Early Automation Wave",impact:-0.8,jobs:1.8,desc:"Finance, insurance, legal back-office begin large-scale LLM deployment."},{yr:"2027–28",label:"Mid-Cycle Acceleration",impact:-1.9,jobs:3.2,desc:"Healthcare admin, HR, payroll automation reaches critical mass."},{yr:"2029–30",label:"Structural Rebalancing",impact:+0.4,jobs:4.1,desc:"New AI-native industries begin meaningful employment."},{yr:"2031–34",label:"New Equilibrium",impact:+2.1,jobs:5.8,desc:"AI productivity compounds. Bottom 40% sees real wage decline without policy intervention."}],countries:[{n:"United States",f:"🇺🇸",hit:-2.1,rec:"2030",at:"12M"},{n:"Canada",f:"🇨🇦",hit:-1.4,rec:"2029",at:"1.8M"},{n:"Mexico",f:"🇲🇽",hit:-3.1,rec:"2032",at:"4.8M"}]},
+    {name:"Africa",flag:"🌍",gdp:3.1,col:"#e53e3e",net:"-1.2T",shocks:[{yr:"2025–26",label:"Leapfrog Lost",impact:-0.2,jobs:0.1,desc:"AI eliminates manufacturing jobs meant to absorb Africa's youth bulge."},{yr:"2027–28",label:"Gulf Remittance Collapse",impact:-1.8,jobs:0.8,desc:"10M African workers in Gulf displaced. Remittances collapse."},{yr:"2029–30",label:"Agricultural Disruption",impact:-2.2,jobs:2.1,desc:"Precision agriculture captures value without creating local employment."},{yr:"2031–34",label:"Digital Divergence",impact:+0.8,jobs:1.4,desc:"Nigeria, Kenya, South Africa digital economies grow — but urban elite only."}],countries:[{n:"Nigeria",f:"🇳🇬",hit:-1.9,rec:"2033",at:"3.1M"},{n:"Ethiopia",f:"🇪🇹",hit:-2.4,rec:"2034",at:"2.8M"},{n:"South Africa",f:"🇿🇦",hit:-1.2,rec:"2031",at:"1.8M"}]},
+  ];
+
+  function GdpTab(){
+    return <div style={{height:'100%',overflowY:'auto',background:'#f0f4f8',padding:'20px 22px',fontFamily:'system-ui,sans-serif'}}>
+      <div style={{maxWidth:960,margin:'0 auto'}}>
+        <div style={{fontFamily:'Georgia,serif',fontSize:20,color:C.text,marginBottom:3}}>GDP & Economic Shock</div>
+        <div style={{fontSize:11,color:C.dim,marginBottom:14,lineHeight:1.7}}>10-year GDP impact projections — employment losses, productivity gains, consumer spending contractions, and new industry creation.</div>
+        <div style={{background:'#fff',borderRadius:11,padding:'16px 20px',border:'1px solid #e2e8f0',marginBottom:16}}>
+          <div style={{fontSize:10,fontWeight:700,letterSpacing:'1.5px',textTransform:'uppercase',color:C.muted,marginBottom:12}}>10-Year Net GDP Impact</div>
+          {GDP_DATA.map(r=>{const isPos=r.net.startsWith('+'),val=parseFloat(r.net.replace(/[^0-9.-]/g,'')),bw=Math.min(Math.abs(val)/9*100,100);return(
+            <div key={r.name} style={{display:'flex',alignItems:'center',gap:10,marginBottom:8}}>
+              <div style={{fontSize:16,width:22,textAlign:'center'}}>{r.flag}</div>
+              <div style={{width:120,fontSize:11,fontWeight:600,color:C.text,flexShrink:0}}>{r.name}</div>
+              <div style={{flex:1,height:18,background:'#f0f4f8',borderRadius:4,overflow:'hidden',position:'relative'}}><div style={{position:'absolute',...{[isPos?'left':'right']:0},height:'100%',width:`${bw}%`,background:isPos?r.col+'cc':'#e53e3ecc',borderRadius:4}}/></div>
+              <div style={{fontSize:12,fontWeight:700,color:isPos?r.col:'#e53e3e',minWidth:52,textAlign:'right'}}>{r.net}T</div>
+            </div>);})}
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(430px,1fr))',gap:14}}>
+          {GDP_DATA.map(r=><div key={r.name} style={{background:'#fff',borderRadius:11,border:`2px solid ${r.col}25`,overflow:'hidden'}}>
+            <div style={{background:`${r.col}10`,padding:'12px 16px',borderBottom:`1px solid ${r.col}20`}}>
+              <div style={{fontFamily:'Georgia,serif',fontSize:15,color:C.text}}>{r.flag} {r.name}</div>
+              <div style={{fontSize:10,color:C.dim,marginTop:1}}>GDP 2024: <strong>${r.gdp}T</strong> · 10yr: <strong style={{color:r.net.startsWith('+')?r.col:'#e53e3e'}}>{r.net}T net</strong></div>
+            </div>
+            <div style={{padding:'10px 16px'}}>
+              {r.shocks.map((s,i)=>{const isPos=s.impact>=0;return(
+                <div key={i} style={{display:'flex',gap:10,marginBottom:7,paddingBottom:7,borderBottom:'1px solid #f0f4f8'}}>
+                  <div style={{flexShrink:0,width:66}}><div style={{fontSize:8,fontWeight:700,color:r.col}}>{s.yr}</div><div style={{fontSize:14,fontWeight:700,color:isPos?'#38a169':'#e53e3e',lineHeight:1}}>{isPos?'+':''}{s.impact}%</div><div style={{fontSize:8,color:C.muted}}>{s.jobs}M jobs</div></div>
+                  <div style={{flex:1}}><div style={{fontSize:10,fontWeight:600,color:C.text,marginBottom:1}}>{s.label}</div><div style={{fontSize:10,color:C.dim,lineHeight:1.6}}>{s.desc}</div></div>
+                </div>);})}
+            </div>
+            <div style={{padding:'0 16px 10px'}}>
+              <div style={{fontSize:8,fontWeight:700,letterSpacing:'1px',textTransform:'uppercase',color:C.muted,marginBottom:5}}>Country Exposures</div>
+              {r.countries.map(ct=><div key={ct.n} style={{display:'flex',gap:8,alignItems:'center',padding:'4px 0',borderTop:'1px solid #f0f4f8'}}>
+                <span style={{fontSize:16}}>{ct.f}</span>
+                <div style={{flex:1}}><span style={{fontSize:11,fontWeight:600,color:C.text}}>{ct.n}</span><span style={{fontSize:9,color:C.dim,marginLeft:8}}>→ {ct.at} at risk · recovery {ct.rec}</span></div>
+                <span style={{fontSize:11,fontWeight:700,color:ct.hit<0?'#e53e3e':'#38a169'}}>{ct.hit<0?'':'+'}${ct.hit}%</span>
+              </div>)}
+            </div>
+          </div>)}
+        </div>
+        <div style={{background:'#1a2340',borderRadius:12,padding:'20px 24px',marginTop:14,color:'#c8d8f0'}}>
+          <div style={{fontFamily:'Georgia,serif',fontSize:16,color:'#fff',marginBottom:8}}>The $15 Trillion Redistribution</div>
+          <div style={{fontSize:11,lineHeight:1.85}}>By 2034, AI will have generated an estimated <strong style={{color:'#fff'}}>$15–20 trillion in cumulative global productivity gains</strong>. Under current trajectories, 78% flows to the top 10% of earners. <strong style={{color:'#fff'}}>South Asia and Africa face net GDP contraction despite the global surge</strong> — made poorer by a technology that makes the world richer in aggregate. This is a policy choice.</div>
+        </div>
+      </div>
+    </div>;
+  }
+
+  const CONFLICTS=[
+    {sev:"Critical",col:"#ff1a33",icon:"☢️",title:"AI Arms Race & Autonomous Weapons",sub:"US · China · Russia",prob:"Very High (85%)",overview:"The race to develop autonomous lethal weapons systems is accelerating faster than any governance framework. AI-enabled military systems make kill decisions in milliseconds. Russia's use of AI-guided drones in Ukraine is a live experiment in autonomous battlefield AI.",flashpoints:["Taiwan Strait: hair-trigger miscalculation risk as response times compress below human speed","Autonomous drone swarms deployable by non-state actors democratise lethal force","Cyber-physical attacks on critical infrastructure indistinguishable from acts of war","Nuclear command: AI integration into early warning creates dangerous false-positive risk"],mitigation:"International AI weapons convention. US-China AI military hotline. Meaningful human control requirements in weapons procurement."},
+    {sev:"Critical",col:"#ff1a33",icon:"🌊",title:"Climate Migration & Resource War Cascade",sub:"Sahel · South Asia · Central America",prob:"High (78%)",overview:"AI-driven agricultural automation collides with climate-driven agricultural failure to produce a migration wave without historical precedent. The World Bank projects 216 million internal climate migrants by 2050. AI job displacement removes the urban employment that historically absorbed rural migrants.",flashpoints:["Sahel: Lake Chad disappearing — 50M people, weak states, no urban jobs","Bangladesh: 30–40M coastal displacement by 2050","India-Pakistan water wars: Indus Water Treaty under strain, both nuclear-armed","Horn of Africa: Ethiopia, Somalia, Sudan — fragile states sharing a warming, drying geography"],mitigation:"Climate adaptation finance. Managed migration pathways. AI-driven early warning systems for conflict prediction."},
+    {sev:"Critical",col:"#ff1a33",icon:"🤖",title:"AI Disinformation & Democratic Collapse",sub:"Global · Every Electoral Democracy",prob:"Very High (90%+ already occurring)",overview:"Synthetic media is already deployed in elections globally. The 2024 cycle saw AI disinformation at unprecedented scale. When people cannot distinguish real from fabricated reality, authoritarian simplicity becomes appealing.",flashpoints:["Election manipulation: AI-generated voter suppression deployed faster than fact-checkers can respond","Economic anxiety weaponised toward ethnonationalism via AI-targeted content","Synthetic atrocity propaganda: AI-generated footage to justify military action","Leadership impersonation: voice clones of presidents giving false orders"],mitigation:"Content provenance standards (C2PA). Platform AI transparency. Media literacy from primary school age."},
+    {sev:"High",col:"#ff6600",icon:"⚡",title:"AI Economic Warfare & Decoupling",sub:"US · China · EU",prob:"High (75%)",overview:"US export controls on semiconductors represent the opening move in an AI technology war. China is creating parallel AI ecosystems. For 150+ developing nations caught between, the cost of choosing sides is rising.",flashpoints:["Chip war: Taiwan TSMC is the world's most strategically critical factory","AI colonialism backlash: nations recognising AI extracts value without local benefit","Undersea cable sabotage: 97% of internet traffic is vulnerable","Sanctions cascades: AI-powered financial warfare grows faster and more targeted"],mitigation:"Multilateral AI governance (UN, OECD). Open-source AI as global public good. Technology transfer in trade agreements."},
+    {sev:"High",col:"#ff6600",icon:"🏚️",title:"Domestic Political Violence from Displacement",sub:"US · India · Brazil · Nigeria",prob:"Moderate-High (65%)",overview:"Mass unemployment historically precedes political violence. AI displacement is structural, rapid, and concentrated among demographics with the highest propensity for radicalisation. When displacement coincides with identity politics and authoritarian narratives, civil unrest becomes acute.",flashpoints:["US Midwest: concentrated displacement in already-radicalised communities","India: 600M under-25s + unemployment + caste conflict = high-risk combination","Brazil: Bolsonarismo showed the mobilisation pattern — AI displacement amplifies it","West Africa: Youth unemployment + Sahel instability + remittance collapse = state fragility"],mitigation:"Universal basic income pilots. Retraining with income replacement. Community investment in displaced regions."},
+  ];
+
+  function GeoTab(){
+    const [exp,setExp]=useState(null);
+    return <div style={{height:'100%',overflowY:'auto',background:C.bg,padding:'20px',fontFamily:'system-ui,sans-serif'}}>
+      <div style={{maxWidth:860,margin:'0 auto'}}>
+        <div style={{fontFamily:'Georgia,serif',fontSize:20,color:C.darkText,marginBottom:3}}>Impending Conflict</div>
+        <div style={{fontSize:11,color:C.darkMuted,marginBottom:16,lineHeight:1.7}}>AI-driven displacement is not just an economic event — it is a geopolitical trigger. These are the conflict vectors most likely to escalate as displacement accelerates.</div>
+        {CONFLICTS.map((cf,i)=><div key={i} style={{background:C.darkCard,borderRadius:12,border:`1px solid ${cf.col}28`,marginBottom:10,overflow:'hidden'}}>
+          <div style={{display:'flex',gap:12,alignItems:'flex-start',padding:'14px 16px',cursor:'pointer'}} onClick={()=>setExp(exp===i?null:i)}>
+            <div style={{fontSize:26,flexShrink:0}}>{cf.icon}</div>
+            <div style={{flex:1}}>
+              <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:2}}>
+                <span style={{background:`${cf.col}20`,color:cf.col,border:`1px solid ${cf.col}40`,padding:'1px 7px',borderRadius:9,fontSize:8,fontWeight:700,textTransform:'uppercase'}}>{cf.sev}</span>
+                <span style={{fontSize:9,color:C.darkMuted}}>{cf.sub}</span>
+              </div>
+              <div style={{fontFamily:'Georgia,serif',fontSize:15,color:C.darkText,marginBottom:2}}>{cf.title}</div>
+              <div style={{fontSize:10,color:C.darkMuted}}>Probability: <strong style={{color:cf.col}}>{cf.prob}</strong></div>
+            </div>
+            <div style={{fontSize:12,color:C.darkMuted,transform:exp===i?'rotate(90deg)':'none',transition:'transform 0.2s',flexShrink:0}}>▶</div>
+          </div>
+          {exp===i&&<div style={{padding:'0 16px 14px',borderTop:`1px solid ${cf.col}18`}}>
+            <div style={{fontSize:11,color:C.darkMuted,lineHeight:1.8,marginBottom:12,marginTop:10}}>{cf.overview}</div>
+            <div style={{fontSize:8,fontWeight:700,letterSpacing:'1.5px',textTransform:'uppercase',color:cf.col,marginBottom:7}}>Flash Points</div>
+            {cf.flashpoints.map((fp,j)=><div key={j} style={{display:'flex',gap:7,marginBottom:5,fontSize:10,color:'#a0b8cc',lineHeight:1.6}}><span style={{color:cf.col,flexShrink:0}}>⚡</span><span>{fp}</span></div>)}
+            <div style={{marginTop:10,padding:'9px 11px',background:`${cf.col}10`,borderRadius:7,borderLeft:`3px solid ${cf.col}`}}>
+              <div style={{fontSize:8,fontWeight:700,letterSpacing:'1px',textTransform:'uppercase',color:C.green,marginBottom:3}}>Mitigation</div>
+              <div style={{fontSize:10,color:C.darkMuted,lineHeight:1.7}}>{cf.mitigation}</div>
+            </div>
+          </div>}
+        </div>)}
+      </div>
+    </div>;
+  }
+
+  const OPP=[
+    {icon:"🤖",title:"AI Trainers & Evaluators",growth:"+340%",timeline:"Now → 2030",salary:"$45K–$95K",desc:"Every AI model requires humans to generate training data, evaluate outputs, and refine responses. This work is rising in complexity — from basic labelling to nuanced cultural and ethical judgment.",skills:["Data Annotation","RLHF","Cultural Evaluation","Domain Expertise"]},
+    {icon:"🛡️",title:"AI Governance & Ethics Officers",growth:"+280%",timeline:"2025 → 2035",salary:"$85K–$180K",desc:"Every major organisation deploying AI needs people who audit systems for bias, ensure regulatory compliance (EU AI Act), and communicate AI limitations to boards and regulators.",skills:["AI Policy","Risk Assessment","Regulatory Compliance","Ethics Frameworks"]},
+    {icon:"🏥",title:"Human-Centred Care Roles",growth:"+190%",timeline:"Now → 2040",salary:"$38K–$85K",desc:"AI cannot replicate human empathy, physical presence, or trust in healthcare, elder care, and mental health support. As populations age and AI creates social isolation risks, demand surges.",skills:["Emotional Intelligence","Clinical Judgment","Complex Communication","Physical Care"]},
+    {icon:"⚙️",title:"Process Automation Architects",growth:"+220%",timeline:"2025 → 2032",salary:"$75K–$145K",desc:"Someone has to design, implement, and manage the AI systems replacing workers. Former back-office managers are natural candidates — they understand what needs doing.",skills:["Workflow Analysis","No-Code AI","Change Management","Business Process"]},
+    {icon:"🌿",title:"Climate Transition Workforce",growth:"+410%",timeline:"Now → 2040",salary:"$42K–$120K",desc:"The clean energy transition requires millions: solar installers, wind technicians, battery engineers, EV infrastructure builders, carbon accountants, ecological restoration managers.",skills:["Renewable Energy","Environmental Science","Project Management","Green Finance"]},
+    {icon:"🎨",title:"Human Creativity & Craft",growth:"+85%",timeline:"2027 → 2035",salary:"$30K–$250K+",desc:"AI generates competent average-quality content at scale. Premium human creativity — bespoke craft, live performance, unique artistic voice — becomes more valuable as AI floods the market.",skills:["Craft Mastery","Authentic Voice","Community Building","Storytelling"]},
+  ];
+
+  function HopeTab(){
+    const [sel,setSel]=useState(null);
+    return <div style={{height:'100%',overflowY:'auto',background:'#f0f4f8',padding:'20px 22px',fontFamily:'system-ui,sans-serif'}}>
+      <div style={{maxWidth:960,margin:'0 auto'}}>
+        <div style={{fontFamily:'Georgia,serif',fontSize:20,color:C.text,marginBottom:3}}>🌱 The Opportunity Ahead</div>
+        <div style={{fontSize:11,color:C.dim,marginBottom:18,lineHeight:1.8}}>AI workforce disruption is real and severe — but not the whole story. Every major technological transition has created more work than it destroyed, over time. The question is whether transition support is fast and broad enough to catch displaced workers before they fall through the gap.</div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(270px,1fr))',gap:11,marginBottom:18}}>
+          {OPP.map((o,i)=><div key={i} onClick={()=>setSel(sel===i?null:i)} style={{background:'#fff',borderRadius:11,border:`2px solid ${sel===i?C.accent:'#e2e8f0'}`,padding:'14px 16px',cursor:'pointer',transition:'all 0.15s',boxShadow:sel===i?'0 4px 16px rgba(59,110,245,0.15)':'0 1px 6px rgba(20,40,80,0.05)'}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:7}}>
+              <span style={{fontSize:22}}>{o.icon}</span>
+              <span style={{background:'rgba(56,161,105,0.15)',color:C.green,border:'1px solid rgba(56,161,105,0.3)',padding:'2px 8px',borderRadius:9,fontSize:10,fontWeight:700}}>{o.growth}</span>
+            </div>
+            <div style={{fontFamily:'Georgia,serif',fontSize:14,color:C.text,marginBottom:4}}>{o.title}</div>
+            <div style={{fontSize:10,color:C.dim,lineHeight:1.6,marginBottom:sel===i?8:0}}>{o.desc}</div>
+            {sel===i&&<>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:9}}>
+                <div style={{background:'#f7f9fc',borderRadius:7,padding:'7px 9px'}}><div style={{fontSize:7,fontWeight:700,letterSpacing:'1px',textTransform:'uppercase',color:C.muted,marginBottom:1}}>Timeline</div><div style={{fontSize:10,fontWeight:600,color:C.text}}>{o.timeline}</div></div>
+                <div style={{background:'#f7f9fc',borderRadius:7,padding:'7px 9px'}}><div style={{fontSize:7,fontWeight:700,letterSpacing:'1px',textTransform:'uppercase',color:C.muted,marginBottom:1}}>Salary</div><div style={{fontSize:10,fontWeight:600,color:C.green}}>{o.salary}</div></div>
+              </div>
+              <div style={{display:'flex',flexWrap:'wrap',gap:4}}>{o.skills.map(s=><span key={s} style={{background:'rgba(59,110,245,0.1)',color:C.accent,border:'1px solid rgba(59,110,245,0.2)',padding:'2px 7px',borderRadius:9,fontSize:9,fontWeight:600}}>{s}</span>)}</div>
+            </>}
+          </div>)}
+        </div>
+        <div style={{background:'#1a2340',borderRadius:12,padding:'20px 24px',color:'#c8d8f0'}}>
+          <div style={{fontFamily:'Georgia,serif',fontSize:16,color:'#fff',marginBottom:8}}>The Core Bargain</div>
+          <div style={{fontSize:11,lineHeight:1.85}}>The AI era does not have to be defined by displacement. It can be defined by the largest expansion of human possibility in history — <strong style={{color:'#fff'}}>if we choose to distribute its benefits broadly rather than concentrate them narrowly.</strong> Every retraining program funded, every safety net expanded, every new industry seeded in a displaced community is a vote for the version of AI transition that humanity can be proud of.</div>
+        </div>
+      </div>
+    </div>;
+  }
+
+  function Stat({label,value,color,tip}){
+    const [show,setShow]=useState(false);
+    return <div style={{position:'relative',textAlign:'center',padding:'0 10px',borderRight:`1px solid ${C.border}`}} onMouseEnter={()=>setShow(true)} onMouseLeave={()=>setShow(false)}>
+      <div style={{fontSize:7,fontWeight:700,letterSpacing:'1.5px',textTransform:'uppercase',color:C.muted,display:'flex',alignItems:'center',gap:3,justifyContent:'center'}}>
+        {label}<span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:11,height:11,borderRadius:'50%',background:'rgba(59,110,245,0.15)',color:C.accent,fontSize:8,fontWeight:700,cursor:'help'}}>?</span>
+      </div>
+      <div style={{fontSize:16,fontWeight:700,color,marginTop:1,letterSpacing:'-0.5px'}}>{value}</div>
+      {show&&<div style={{position:'absolute',top:'calc(100% + 8px)',left:'50%',transform:'translateX(-50%)',width:200,background:'#1a2340',color:'#e8f0ff',fontSize:10,lineHeight:1.7,padding:'10px 12px',borderRadius:9,boxShadow:'0 8px 30px rgba(0,0,0,0.4)',zIndex:999,border:'1px solid rgba(59,110,245,0.3)',fontFamily:'system-ui,sans-serif',pointerEvents:'none',textAlign:'left'}}>
+        <div style={{position:'absolute',top:-5,left:'50%',transform:'translateX(-50%)',width:0,height:0,borderLeft:'5px solid transparent',borderRight:'5px solid transparent',borderBottom:'5px solid #1a2340'}}/>
+        {tip}
+      </div>}
+    </div>;
+  }
+
+  const TABS=[['globe','🌐 Map'],['nation','👥 Nations'],['data','📊 Observatory'],['gdp','📉 GDP'],['geo','⚔️ Conflict'],['hope','🌱 Opportunity']];
+
+  function App(){
+    const [year,setYear]=useState(2025);
+    const [tab,setTab]=useState('globe');
+    const [selId,setSelId]=useState(null);
+    const [hovId,setHovId]=useState(null);
+    const [playing,setPlaying]=useState(false);
+    const playRef=useRef(null);
+    const togglePlay=()=>{
+      if(playing){clearInterval(playRef.current);setPlaying(false);}
+      else{setPlaying(true);let y=year>=2035?2025:year;if(year>=2035)setYear(2025);playRef.current=setInterval(()=>{y+=1;if(y>2035){clearInterval(playRef.current);setPlaying(false);return;}setYear(y);},1200);}
+    };
+    useEffect(()=>()=>clearInterval(playRef.current),[]);
+    const totals=Object.values(REGIONS).reduce((a,r)=>{const yr=r.yearly[year];return{d:a.d+yr.displaced,n:a.n+yr.newRoles,r:a.r+yr.risk,c:a.c+1};},{d:0,n:0,r:0,c:0});
+    return <div style={{height:'100vh',display:'flex',flexDirection:'column',background:C.bg,fontFamily:'system-ui,sans-serif',overflow:'hidden'}}>
+      <div style={{background:'rgba(255,255,255,0.97)',borderBottom:`1px solid ${C.border}`,padding:'7px 14px',display:'flex',alignItems:'center',gap:10,flexShrink:0,flexWrap:'wrap',boxShadow:'0 2px 12px rgba(20,40,80,0.07)',position:'relative',zIndex:50}}>
+        <div style={{flexShrink:0}}>
+          <div style={{fontFamily:'Georgia,serif',fontSize:15,color:C.text,fontWeight:700,lineHeight:1.2}}>Earth Workforce Evolution</div>
+          <div style={{fontSize:9,color:C.muted}}>Roles at Risk · New Opportunities · 2025–2035</div>
+        </div>
+        <div style={{display:'flex',gap:0,flexShrink:0}}>
+          <Stat label="Roles Disrupted" value={`${totals.d.toFixed(1)}M`} color={C.red} tip={<><strong style={{color:'#fff',display:'block',fontSize:9,marginBottom:3}}>Roles Disrupted</strong>Workers whose job functions are substantially automated or eliminated by AI this year.</>}/>
+          <Stat label="New Roles Created" value={`${totals.n.toFixed(1)}M`} color={C.green} tip={<><strong style={{color:'#fff',display:'block',fontSize:9,marginBottom:3}}>New Roles Created</strong>Entirely new job categories emerging because of AI — trainers, governance officers, automation architects.</>}/>
+          <Stat label="Transition Gap" value={`−${(totals.d-totals.n).toFixed(1)}M`} color={C.orange} tip={<><strong style={{color:'#fff',display:'block',fontSize:9,marginBottom:3}}>Transition Gap</strong>Net shortfall: New Roles minus Roles Disrupted. Negative = displacement outpacing creation.</>}/>
+          <Stat label="Avg Exposure" value={`${Math.round(totals.r/totals.c)}%`} color={C.accent} tip={<><strong style={{color:'#fff',display:'block',fontSize:9,marginBottom:3}}>Avg Automation Exposure</strong>Average share of back-office tasks technically automatable by AI across all 9 regions.</>}/>
+        </div>
+        <div style={{flex:1,minWidth:220}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:3}}>
+            <span style={{fontSize:9,color:C.muted}}>Year</span>
+            <span style={{fontSize:14,fontWeight:700,color:C.accent,letterSpacing:1}}>{year}</span>
+            <button onClick={togglePlay} style={{background:playing?C.red:C.accent,color:'#fff',border:'none',padding:'3px 10px',fontSize:10,fontWeight:600,fontFamily:'system-ui,sans-serif',cursor:'pointer',borderRadius:5}}>{playing?'■ Stop':'▶ Play'}</button>
+          </div>
+          <input type="range" min={2025} max={2035} value={year} onChange={e=>setYear(Number(e.target.value))} style={{width:'100%',cursor:'pointer'}}/>
+          <div style={{display:'flex',justifyContent:'space-between',fontSize:7,color:C.muted,marginTop:1}}>
+            {[2025,2027,2029,2031,2033,2035].map(y=><span key={y} style={{color:y===year?C.accent:C.muted,fontWeight:y===year?700:400}}>{y}</span>)}
+          </div>
+        </div>
+      </div>
+      <div style={{background:'rgba(255,255,255,0.97)',borderBottom:`1px solid ${C.border}`,display:'flex',padding:'0 10px',flexShrink:0,overflowX:'auto',zIndex:40}}>
+        {TABS.map(([t,l])=><button key={t} onClick={()=>setTab(t)} style={{background:'transparent',border:'none',borderBottom:`3px solid ${tab===t?C.accent:'transparent'}`,padding:'8px 12px',fontSize:10,fontWeight:600,color:tab===t?C.accent:C.muted,cursor:'pointer',fontFamily:'system-ui,sans-serif',marginBottom:-1,whiteSpace:'nowrap',flexShrink:0,transition:'all 0.15s'}}>{l}</button>)}
+      </div>
+      <div style={{flex:1,overflow:'hidden',display:'flex',flexDirection:'column',minHeight:0}}>
+        {tab==='globe'&&<div style={{display:'flex',flex:1,overflow:'hidden',minHeight:0}}>
+          <div style={{width:200,borderRight:`1px solid ${C.border}`,flexShrink:0,overflow:'hidden'}}><LeftPanel year={year}/></div>
+          <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',background:'radial-gradient(ellipse at 50% 40%,#0a1628 0%,#060d1a 70%)',overflow:'hidden',position:'relative',minWidth:0}}>
+            <div style={{width:'min(440px,90%)',height:'min(440px,90%)',position:'relative'}}>
+              <GlobeCanvas year={year} selId={selId} hovId={hovId} onSelect={setSelId} onHover={setHovId}/>
+            </div>
+            <div style={{position:'absolute',bottom:10,left:'50%',transform:'translateX(-50%)',background:'rgba(255,255,255,0.07)',backdropFilter:'blur(8px)',padding:'3px 12px',borderRadius:18,fontSize:9,color:'rgba(255,255,255,0.6)',border:'1px solid rgba(255,255,255,0.1)',pointerEvents:'none',whiteSpace:'nowrap'}}>🌍 Drag to rotate · Click a spike to inspect</div>
+          </div>
+          <div style={{width:235,borderLeft:`1px solid ${C.border}`,flexShrink:0,overflow:'hidden'}}><RightPanel year={year} selId={selId} hovId={hovId}/></div>
+        </div>}
+        {tab==='nation'&&<div style={{flex:1,overflow:'hidden',minHeight:0}}><NationImpact/></div>}
+        {tab==='data'&&<div style={{flex:1,overflow:'hidden',minHeight:0}}><DataObservatory/></div>}
+        {tab==='gdp'&&<div style={{flex:1,overflow:'hidden',minHeight:0}}><GdpTab/></div>}
+        {tab==='geo'&&<div style={{flex:1,overflow:'hidden',minHeight:0}}><GeoTab/></div>}
+        {tab==='hope'&&<div style={{flex:1,overflow:'hidden',minHeight:0}}><HopeTab/></div>}
+      </div>
+    </div>;
+  }
+
+  const root=ReactDOM.createRoot(document.getElementById('root'));
+  root.render(<App/>);
+  </script>
+</body>
+</html>
